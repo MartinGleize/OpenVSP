@@ -1,0 +1,88 @@
+int main()
+{
+    int failure = 0;
+
+    if ( !SetVSPAEROPath( GetVSPExePath() ) )
+    {
+        Print( "ERROR: local VSPAERO executables were not found" );
+        return 1;
+    }
+
+    failure += RunCase( "VsploadsControlMulti", true, 3 );
+    failure += RunCase( "VsploadsControlSingle", true, 1 );
+    failure += RunCase( "VsploadsNoControlMulti", false, 3 );
+
+    while ( GetNumTotalErrors() > 0 )
+    {
+        ErrorObj err = PopLastError();
+        Print( err.GetErrorString() );
+        failure++;
+    }
+
+    return failure;
+}
+
+int RunCase( string base_name, bool add_control_surface, int alpha_npts )
+{
+    ClearVSPModel();
+    DeleteAllResults();
+    DeleteAllCpSlices();
+
+    string wing_id = AddGeom( "WING" );
+    SetParmVal( wing_id, "Tess_W", "Shape", 9 );
+    SetParmVal( wing_id, "SectTess_U", "XSec_1", 5 );
+
+    if ( add_control_surface )
+    {
+        AddSubSurf( wing_id, SS_CONTROL );
+        AutoGroupVSPAEROControlSurfaces();
+    }
+
+    Update();
+    WriteVSPFile( base_name + ".vsp3", SET_ALL );
+
+    string analysis = "VSPAEROComputeGeometry";
+    SetAnalysisInputDefaults( analysis );
+    SetIntAnalysisInput( analysis, "GeomSet", { SET_NONE } );
+    SetIntAnalysisInput( analysis, "ThinGeomSet", { SET_ALL } );
+    if ( ExecAnalysis( analysis ).length() == 0 )
+    {
+        Print( "ERROR: failed to compute VSPAERO geometry for " + base_name );
+        return 1;
+    }
+
+    analysis = "VSPAEROSweep";
+    SetAnalysisInputDefaults( analysis );
+    SetIntAnalysisInput( analysis, "GeomSet", { SET_NONE } );
+    SetIntAnalysisInput( analysis, "ThinGeomSet", { SET_ALL } );
+    SetDoubleAnalysisInput( analysis, "AlphaStart", { -8.0 } );
+    SetDoubleAnalysisInput( analysis, "AlphaEnd", { 0.0 } );
+    SetIntAnalysisInput( analysis, "AlphaNpts", { alpha_npts } );
+    SetDoubleAnalysisInput( analysis, "MachStart", { 0.1 } );
+    SetIntAnalysisInput( analysis, "MachNpts", { 1 } );
+    SetIntAnalysisInput( analysis, "WakeNumIter", { 3 } );
+    if ( ExecAnalysis( analysis ).length() == 0 )
+    {
+        Print( "ERROR: VSPAERO failed for " + base_name );
+        return 1;
+    }
+
+    analysis = "CpSlicer";
+    SetAnalysisInputDefaults( analysis );
+    SetDoubleAnalysisInput( analysis, "YSlicePosVec", { 1.0 } );
+    string slice_id = ExecAnalysis( analysis );
+    if ( slice_id.length() == 0 )
+    {
+        Print( "ERROR: vsploads failed for " + base_name );
+        return 1;
+    }
+
+    array< string > slice_cases = GetStringResults( slice_id, "CpSlice_Case_ID_Vec" );
+    if ( int( slice_cases.size() ) != alpha_npts )
+    {
+        Print( "ERROR: expected one Cp slice result per case for " + base_name );
+        return 1;
+    }
+
+    return 0;
+}

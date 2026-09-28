@@ -998,18 +998,18 @@ void ADBSLICER::LoadSolutionData(int Case)
            }
           
        }
-       
-    }
-    
-    // Read in any control surface deflection data
 
-    for ( i = 1 ; i <= NumberOfControlSurfaces ; i++ ) {
+       // Read in any control surface deflection data
 
-       BIO.fread(&(ControlSurface[i].DeflectionAngle), f_size, 1, adb_file); 
+       for ( i = 1 ; i <= NumberOfControlSurfaces ; i++ ) {
+
+          BIO.fread(&(ControlSurface[i].DeflectionAngle), f_size, 1, adb_file);
        
-       printf("ControlSurface[%d].DeflectionAngle: %f \n",i,ControlSurface[i].DeflectionAngle);
+          printf("ControlSurface[%d].DeflectionAngle: %f \n",i,ControlSurface[i].DeflectionAngle);
   
-    }      
+       }
+
+    }
     
     // Calculate nodal values
 

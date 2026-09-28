@@ -179,6 +179,9 @@
 
 ### BUILD INSTRUCTIONS
 
+   A reproducible headless Linux x86_64 build recipe is documented in
+   [BUILD_HEADLESS_LINUX.md](BUILD_HEADLESS_LINUX.md).
+
    If you want to build OpenVSP on a Debian based Linux computer
    (Debian, Ubuntu, Mint, etc.), step-by-step instructions are
    included on the OpenVSP Wiki here: [Debian Based Build](http://www.openvsp.org/wiki/doku.php?id=ubuntu_instructions).
