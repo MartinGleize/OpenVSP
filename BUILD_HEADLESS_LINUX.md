@@ -15,6 +15,7 @@ All generated files and the install prefix remain inside the checkout.
 
 The build was verified on x86_64 CentOS Stream 9 with GCC 11.5.0, OpenMP 4.5,
 CMake 3.31.8, Ninja 1.13.2, SWIG 4.3.1, Python 3.12.14, and NumPy 2.5.3.
+The Python API was also verified with Python 3.8.20 and NumPy 1.24.4.
 OpenVSP and the SuperProject add `-fPIC` automatically on x86_64. STEPcode uses
 its shipped lexer/parser sources, so `lemon`, Perplex, and re2c are not required.
 
@@ -25,6 +26,17 @@ compiler and OpenMP runtime:
 conda create --yes --prefix "$PWD/build/toolchain" --channel conda-forge \
     cmake=3.31.8 ninja=1.13.2 swig=4.3.1 python=3.12.14 numpy=2.5.3
 ```
+
+For a Python 3.8 build, create the toolchain with:
+
+```bash
+conda create --yes --prefix "$PWD/build/toolchain-py38" --channel conda-forge \
+    cmake=3.31.8 ninja=1.13.2 swig=4.3.1 python=3.8.20 numpy=1.24.4
+```
+
+Then use `build/toolchain-py38`, `build/headless-super-py38`, and `inst/headless-py38`
+in place of `build/toolchain`, `build/headless-super`, and `inst/headless` in
+the commands below.
 
 ## Configure and build
 
