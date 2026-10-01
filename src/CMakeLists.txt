@@ -211,7 +211,7 @@ IF( NOT VSP_NO_API_WRAPPERS )
             SET( Python3_FIND_REGISTRY LAST )
         ENDIF()
 
-        FIND_PACKAGE( Python3 COMPONENTS Interpreter Development )
+        FIND_PACKAGE( Python3 COMPONENTS Interpreter Development.Module )
 
         # Variables used by the rest of the build.
         IF( Python3_FOUND )

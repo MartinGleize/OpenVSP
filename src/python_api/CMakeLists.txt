@@ -90,11 +90,16 @@ IF( SWIG_FOUND AND PYTHONLIBS_FOUND AND IS_NUMPY_FOUND )
 
     SET_TARGET_PROPERTIES( pyvsp PROPERTIES OUTPUT_NAME "vsp" )
 
-    IF( APPLE )
-        SET( PY_LIB "" )
-        SET_TARGET_PROPERTIES( pyvsp PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
-    ELSE()
+    IF( WIN32 )
         SET( PY_LIB ${PYTHON_LIBRARIES} )
+    ELSE()
+        # Python extension modules resolve Python symbols from the running
+        # interpreter on Unix.  Linking libpython here makes Linux wheels
+        # depend on a distribution-specific shared library.
+        SET( PY_LIB "" )
+        IF( APPLE )
+            SET_TARGET_PROPERTIES( pyvsp PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
+        ENDIF()
     ENDIF()
 
     if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
@@ -136,11 +141,13 @@ IF( SWIG_FOUND AND PYTHONLIBS_FOUND AND IS_NUMPY_FOUND )
 
         SET_TARGET_PROPERTIES( pyvsp_g PROPERTIES OUTPUT_NAME "vsp_g" )
 
-        IF( APPLE )
-            SET( PY_LIB "" )
-            SET_TARGET_PROPERTIES( pyvsp_g PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
-        ELSE()
+        IF( WIN32 )
             SET( PY_LIB ${PYTHON_LIBRARIES} )
+        ELSE()
+            SET( PY_LIB "" )
+            IF( APPLE )
+                SET_TARGET_PROPERTIES( pyvsp_g PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
+            ENDIF()
         ENDIF()
 
         if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")

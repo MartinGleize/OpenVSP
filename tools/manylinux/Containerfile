@@ -1,0 +1,10 @@
+FROM quay.io/pypa/manylinux_2_28_x86_64@sha256:c2261579b9c2e5d45aa93312f73e2a302182e3e977b558581a1838d6fed3d8e6
+
+ENV PATH=/opt/python/cp312-cp312/bin:$PATH
+
+RUN python -m pip install --no-cache-dir \
+        cmake==3.31.6 \
+        ninja==1.13.0 \
+        numpy==1.26.4 \
+        setuptools==84.0.0 \
+        wheel==0.48.0

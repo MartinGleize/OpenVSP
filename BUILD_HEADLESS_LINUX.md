@@ -93,3 +93,31 @@ conda run --prefix "$PWD/build/toolchain" --no-capture-output ctest \
     --test-dir build/headless-super/OpenVSP-prefix/src/OpenVSP-build \
     -R '^VsploadsControlSurface$' --output-on-failure
 ```
+
+## Portable CPython 3.12 wheels
+
+The native wheel must be built against an older Linux ABI rather than the host
+system. The pinned manylinux container builds OpenVSP headlessly, runs the
+`vsploads` regression, creates the four Python wheels, bundles non-policy shared
+libraries with `auditwheel`, and verifies an import from the repaired wheel set:
+
+The pinned image provides GCC 14.2.1, SWIG 4.5.0, CPython 3.12.14,
+`auditwheel` 6.8.2, and `patchelf` 0.19.1. The container file additionally
+pins CMake 3.31.6, Ninja 1.13.0, NumPy 1.26.4, setuptools 84.0.0, and wheel
+0.48.0.
+
+```bash
+podman build -t openvsp-manylinux-cp312 tools/manylinux
+podman run --rm \
+    -v "$PWD:/work" \
+    -w /work \
+    openvsp-manylinux-cp312 \
+    bash tools/manylinux/build_wheels.sh
+```
+
+The release artifacts are written to
+`build/manylinux_2_28-cp312/wheelhouse/final/`. The native `openvsp` wheel is
+for CPython 3.12 on x86_64 Linux; the other three wheels are platform
+independent. `auditwheel` determines the oldest compatible manylinux tag from
+the symbols actually used. The current build is compatible with
+`manylinux_2_27_x86_64` and newer systems.
