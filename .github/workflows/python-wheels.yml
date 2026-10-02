@@ -1,0 +1,66 @@
+name: Python wheels
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/python-wheels.yml"
+      - "tools/manylinux/**"
+      - "SuperProject/**"
+      - "Libraries/**"
+      - "src/**"
+  push:
+    branches: [dev]
+    tags: ["v*"]
+    paths:
+      - ".github/workflows/python-wheels.yml"
+      - "tools/manylinux/**"
+      - "SuperProject/**"
+      - "Libraries/**"
+      - "src/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build-python-wheels:
+    name: CPython 3.12 / Linux x86_64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build pinned manylinux toolchain image
+        run: >-
+          docker build
+          --file tools/manylinux/Containerfile
+          --tag openvsp-manylinux-cp312
+          tools/manylinux
+
+      - name: Build and test wheels
+        run: |
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/work" \
+            --workdir /work \
+            openvsp-manylinux-cp312 \
+            bash tools/manylinux/build_wheels.sh
+
+      - name: Verify wheel set
+        shell: bash
+        run: |
+          shopt -s nullglob
+          wheels=(build/manylinux_2_28-cp312/wheelhouse/final/*.whl)
+          if [ "${#wheels[@]}" -ne 4 ]; then
+            printf 'Expected 4 wheels, found %d\n' "${#wheels[@]}" >&2
+            exit 1
+          fi
+          printf '%s\n' "${wheels[@]}"
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: openvsp-cp312-manylinux-wheels-${{ github.sha }}
+          path: build/manylinux_2_28-cp312/wheelhouse/final/*.whl
+          if-no-files-found: error
+          retention-days: 14
