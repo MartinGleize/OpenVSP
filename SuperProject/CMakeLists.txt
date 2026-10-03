@@ -71,5 +71,5 @@ EP_ForceBuild( OpenVSP )
 
 ExternalProject_Add_Step( OpenVSP package
     COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target package
-    DEPENDEES build
+    DEPENDEES install
 )
