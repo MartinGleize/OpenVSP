@@ -2,6 +2,16 @@ name: Python wheels
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Leave empty to build only; for example v3.53.1-dev.2"
+        required: false
+        type: string
+      prerelease:
+        description: "Mark a published release as a prerelease"
+        required: true
+        default: true
+        type: boolean
   pull_request:
     paths:
       - ".github/workflows/python-wheels.yml"
@@ -64,3 +74,98 @@ jobs:
           path: build/manylinux_2_28-cp312/wheelhouse/final/*.whl
           if-no-files-found: error
           retention-days: 14
+
+  publish-release:
+    name: Publish GitHub release
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    needs: build-python-wheels
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download built wheels
+        uses: actions/download-artifact@v7
+        with:
+          name: openvsp-cp312-manylinux-wheels-${{ github.sha }}
+          path: dist
+
+      - name: Validate release request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          if [ "$GITHUB_REF" != "refs/heads/dev" ]; then
+            echo "Release runs must target the dev branch, not $GITHUB_REF" >&2
+            exit 1
+          fi
+
+          wheels=(dist/*.whl)
+          degen_geom_wheels=(dist/degen_geom-*.whl)
+          openvsp_wheels=(dist/openvsp-*-cp312-cp312-*.whl)
+          openvsp_config_wheels=(dist/openvsp_config-*.whl)
+          utilities_wheels=(dist/utilities-*.whl)
+          if [ "${#wheels[@]}" -ne 4 ] || \
+             [ "${#degen_geom_wheels[@]}" -ne 1 ] || \
+             [ "${#openvsp_wheels[@]}" -ne 1 ] || \
+             [ "${#openvsp_config_wheels[@]}" -ne 1 ] || \
+             [ "${#utilities_wheels[@]}" -ne 1 ]; then
+            printf 'Expected exactly one wheel for each of degen_geom, openvsp, openvsp_config, and utilities\n' >&2
+            printf 'Found: %s\n' "${wheels[*]:-none}" >&2
+            exit 1
+          fi
+
+          wheel_name=${openvsp_wheels[0]##*/}
+          wheel_version=${wheel_name#openvsp-}
+          wheel_version=${wheel_version%%-cp312-*}
+          if [ "$PRERELEASE" = "true" ]; then
+            version_pattern=${wheel_version//./\\.}
+            tag_pattern="^v${version_pattern}-dev\\.[1-9][0-9]*$"
+            if [[ ! "$RELEASE_TAG" =~ $tag_pattern ]]; then
+              echo "Prerelease tag $RELEASE_TAG does not match v${wheel_version}-dev.N" >&2
+              exit 1
+            fi
+          elif [ "$RELEASE_TAG" != "v${wheel_version}" ]; then
+            echo "Stable release tag must be v${wheel_version}, not $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; published releases are not overwritten" >&2
+            exit 1
+          fi
+          if gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists; choose a new release tag" >&2
+            exit 1
+          fi
+
+          (cd dist && sha256sum ./*.whl > SHA256SUMS)
+          cat dist/SHA256SUMS
+
+      - name: Create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          release_flags=(
+            --generate-notes
+            --target "$GITHUB_SHA"
+            --title "$RELEASE_TAG"
+          )
+          if [ "$PRERELEASE" = "true" ]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
+
+          gh release create "$RELEASE_TAG" \
+            dist/*.whl dist/SHA256SUMS \
+            "${release_flags[@]}"
